@@ -3,8 +3,8 @@ from django.db.models import Sum
 from django.shortcuts import redirect
 from django.template import RequestContext
 from django.shortcuts import render
-from fac.forms import CargaFacForm
-
+from django.views.generic import ListView
+from fac.forms import CargaFacForm, FacturaForm
 import datetime as dt
 
 import pandas as pd
@@ -21,6 +21,19 @@ import os
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
+import django_tables2 as tables
+from django_tables2 import RequestConfig
+from django.views.generic.base import View
+
+from django_tables2 import SingleTableMixin
+from django_filters.views import FilterView
+
+from .tables import FacHTMxTable
+from .filters import FacFilter
+
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 
 @login_required()
 def upload_fac(request):
@@ -28,7 +41,7 @@ def upload_fac(request):
         if request.method == 'POST' and request.FILES['myfile']:
 
             form = CargaFacForm(request.POST)
- 
+
             return render(request, 'fac/archexcel.html',{'form': form})
     except Exception as identifier:
         print(identifier)
@@ -153,3 +166,122 @@ def act_load_fac(request):
 
     form = CargaFacForm()
     return render(request, 'fac/archexcel.html',{'form': form})
+
+# *********************************************************
+# *********************************************************
+
+def create_fac(request):  
+    if request.method == "POST":  
+        form = FacturaForm(request.POST)  
+        if form.is_valid():  
+            try:  
+                form.save()  
+                return redirect('create_fac.html')  
+            except:  
+                pass 
+    else:  
+        form = FacturaForm()  
+    return render(request,'fac/create_fac.html',{'form':form})
+
+#*************************************
+
+#************************************
+    """_
+class list_fac_view(SingleTableMixin, FilterView):
+
+    table_class = FacHTMxTable
+    queryset = Facturas.objects.all()
+    filterset_class = FacFilter
+    paginate_by = 2
+
+    def get_template_names(self):
+        #if self.request.htmx:
+        #    template_name = "fac/list_fac_partial.html"
+        #else:
+        #    template_name = "fac/list_fac_all.html"
+        template_name = "fac/list_fac.html"
+        return template_name
+
+@require_http_methods(['DELETE'])
+def delete_fac(request, id):
+    # remove the invoice from the user's list
+    request.user.films.remove(pk)
+    request.Fac
+   
+   def list_fac_view(request):
+    fac_list = Facturas.objects.all()
+    return render(request, 'fac/list_fac.html', {'fac_list': fac_list}) _
+    """
+#***********************************
+#***********************************
+
+def list_fac_view(request):
+    facturas = Facturas.objects.all()
+    page = request.GET.get('page', 1)
+    paginator = Paginator(facturas, 20)
+    try:
+        fac_list = paginator.page(page)
+    except PageNotAnInteger:
+        fac_list = paginator.page(1)
+    except EmptyPage:
+        fac_list = paginator.page(paginator.num_pages)
+
+    return render(request, 'fac/list_fac.html', {'fac_list': fac_list})
+
+
+@require_http_methods(['DELETE'])
+def delete_fac(request, id):
+    Facturas.objects.filter(ID_FACTURA=id).delete()
+    facturas = Facturas.objects.all()
+
+    page = request.GET.get('page', 1)
+    paginator = Paginator(facturas, 20)
+    try:
+        fac_list = paginator.page(page)
+    except PageNotAnInteger:
+        fac_list = paginator.page(1)
+    except EmptyPage:
+        fac_list = paginator.page(paginator.num_pages)
+
+    return render(request, 'fac/table_fac.html', {'fac_list': fac_list})
+
+#***********************************
+#***********************************
+
+def find_fac(request):
+    q = request.GET.get('query')
+
+    if q:
+        facturas = Facturas.objects.filter(FOLIO__icontains=q)
+    else:
+        facturas = Facturas.objects.all()
+
+    page = request.GET.get('page', 1)
+    paginator = Paginator(facturas, 20)
+    try:
+        fac_list = paginator.page(page)
+    except PageNotAnInteger:
+        fac_list = paginator.page(1)
+    except EmptyPage:
+        fac_list = paginator.page(paginator.num_pages)
+
+    return render(request, 'fac/list_fac.html', {'fac_list': fac_list})
+
+
+#*********************************
+#*********************************
+
+
+def update_fac(request):
+    id = 1
+    fac = Facturas.objects.get(id=id)
+    context = {"fac": fac}
+    return render(request, 'fac/update_fac.html', context)
+
+class update_fac_view(View):
+
+    def get(self, request, id):
+
+        context_data = {"fac":Facturas.objects.get(id=id)}
+
+        return render(request,'fac/update_fac.html',context_data)
